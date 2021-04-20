@@ -1,0 +1,67 @@
+version: '3.1'
+
+services:
+
+    modem_app:
+        build:
+            context: .
+        container_name: modem_app
+        restart: unless-stopped
+        volumes:
+            - ./v2/:/usr/src/app
+        networks:
+            - modem-network
+        links:
+            - influxdb
+
+    influxdb:
+        image: influxdb:latest
+        container_name: influxdb
+        ports:
+            - "8083:8083"
+            - "8086:8086"
+            - "8090:8090"
+        env_file:
+            - 'env.influxdb'
+        volumes:
+            # Data persistency
+            # sudo mkdir -p /srv/docker/influxdb/data
+            - modem-db:/var/lib/influxdb
+        networks:
+            - modem-network
+        
+    telegraf:
+        image: telegraf:latest
+        container_name: telegraf
+        links:
+            - influxdb
+        volumes:
+            - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+        networks:
+            - modem-network
+        
+    grafana:
+        image: grafana/grafana:latest
+        container_name: grafana
+        ports:
+            - "3000:3000"
+        env_file:
+            - 'env.grafana'
+        user: "0"
+        links:
+            - influxdb
+        volumes:
+            # Data persistency
+            # sudo mkdir -p /srv/docker/grafana/data; chown 472:472 /srv/docker/grafana/data
+            - grafana-v:/var/lib/grafana
+        networks:
+            - modem-network
+
+
+volumes:
+    modem-db:
+    grafana-v:
+
+networks:
+    modem-network:
+        driver: bridge
